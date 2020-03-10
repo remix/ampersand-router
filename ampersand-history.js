@@ -62,7 +62,16 @@ extend(History.prototype, Events, {
     getFragment: function (fragment) {
         if (fragment == null) {
             if (this._hasPushState || !this._wantsHashChange) {
-                fragment = this.getPath();
+                var path = this.getPath();
+                var hash = this.getHash();
+                // I`m using `&' and not `#` because, on first load, somewhere
+                // along the call stack the hash in the fragment is being
+                // double-encoded. A url like `/hi#there` redirects to
+                // `/hi%23there`.
+                //
+                // This is not a problem because `fragment` is used only in the
+                // internal state.
+                fragment = hash ? path + '&' + hash : path;
             } else {
                 fragment = this.getHash();
             }
@@ -192,8 +201,13 @@ extend(History.prototype, Events, {
 
         var url = this.root + (fragment = this.getFragment(fragment || ''));
 
-        // Strip the hash and decode for matching.
-        fragment = decodeURI(fragment.replace(pathStripper, ''));
+        // We only want to strip the hash if the browser doesn't support
+        // pushState.
+        if (this._hasPushState) {
+          fragment = decodeURI(fragment);
+        } else {
+          fragment = decodeURI(fragment.replace(pathStripper, ''));
+        }
 
         if (this.fragment === fragment) return;
         this.fragment = fragment;
